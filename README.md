@@ -22,17 +22,7 @@ Rows: 7043
 
 Columns: 21 features (e.g., tenure, MonthlyCharges, Contract, PaymentMethod, Churn)
 
-Project Structure
-.
-├── Data/                       # Dataset CSV
-├── Notebooks/
-│   └── churn_analysis.ipynb    # Main analysis notebook
-├── Models/
-│   ├── logistic_model.pkl
-│   ├── random_forest_model.pkl
-│   └── scaler.pkl
-├── README.md                   # This file
-Requirements
+
 
 Python 3.x
 
