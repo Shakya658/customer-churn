@@ -1,110 +1,193 @@
-Customer Churn Analysis
-
+📊 Telco Customer Churn Prediction
 Project Overview
 
-This project analyzes the Telco Customer Churn dataset to understand factors influencing customer churn and predict churn using machine learning models. The notebook demonstrates a complete workflow from data cleaning and exploratory analysis to feature engineering and predictive modeling.
+This project analyzes the Telco Customer Churn dataset to understand the key factors influencing customer churn and to build machine learning models capable of predicting whether a customer is likely to leave a telecom service.
 
-The goal is to:
+The project demonstrates a complete machine learning workflow, including:
 
-Identify patterns leading to customer churn
+Data cleaning and preprocessing
 
-Understand which features most affect churn
+Exploratory Data Analysis (EDA)
 
-Train and evaluate Logistic Regression, Random Forest, and XGBoost models
+Feature engineering
 
-Prepare models for deployment as a web app or API
+Model training and evaluation
 
-Dataset
+Model comparison
 
-Source: Telco Customer Churn dataset (WA_Fn-UseC_-Telco-Customer-Churn.csv)
+Deployment using a Streamlit web application
 
-Rows: 7043
+The final result is an interactive web app that predicts customer churn probability based on customer information.
 
-Columns: 21 features (e.g., tenure, MonthlyCharges, Contract, PaymentMethod, Churn)
+📂 Dataset
 
+Source: Telco Customer Churn Dataset
+File: WA_Fn-UseC_-Telco-Customer-Churn.csv
 
+Dataset characteristics:
 
-Python 3.x
+Rows: 7043 customers
 
-Libraries: pandas, numpy, matplotlib, seaborn, scikit-learn, xgboost
+Features: 21 columns
 
-Install packages:
+Target variable: Churn
 
-pip install pandas numpy matplotlib seaborn scikit-learn xgboost
-How to Run
+Example features:
 
-Open Notebooks/churn_analysis.ipynb in Jupyter Notebook or JupyterLab.
+tenure
 
-Run cells sequentially to reproduce the analysis, visualizations, and model evaluations.
+MonthlyCharges
 
-Key Features
+TotalCharges
 
-Data Cleaning:
+Contract
 
-Converted TotalCharges to numeric and handled missing values intelligently.
+InternetService
 
-Exploratory Data Analysis:
+OnlineSecurity
 
-Churn percentages by category for easy interpretation
+TechSupport
 
-Distribution plots and boxplots for numerical features
+PaymentMethod
 
-Correlation heatmaps and pairplots to understand feature relationships
+PaperlessBilling
 
-Feature Engineering:
+🧠 Machine Learning Models & Test Results
 
-Label encoding for binary features
+Three models were trained and evaluated on the test set:
 
-One-hot encoding for multi-class features
-
-Tenure groups created and encoded
-
-Models & Evaluation:
-
-Logistic Regression, Random Forest, and XGBoost
-
-Evaluation metrics include classification reports, ROC AUC, Precision-Recall, and confusion matrices
-
-Feature Importance:
-
-Top 5 features highlighted with plain-language explanations
-
-Models & Performance Highlights
 Model	Accuracy	ROC AUC	Notes
-Logistic Regression	~81%	0.85	Baseline model
-Random Forest	~82%	0.87	Better recall for churn class
-XGBoost	~82%	0.87	Additional model with strong predictive power
+Logistic Regression	0.81	0.8519	Strong baseline with good precision for non-churn
+Random Forest	0.77	0.8472	Better recall for churn class; slightly lower accuracy
+XGBoost	0.79	0.8227	Moderate performance; balanced between classes
 
-Top 5 Features Affecting Churn:
+Default Model for the App:
+Random Forest is used as default for predictions due to its better recall on the churn class, which is often more important in business contexts. Users can switch models interactively in the app.
 
-Contract_Month-to-month: Customers on month-to-month contracts churn more.
+🔍 Key Insights from Analysis
 
-tenure: Shorter tenure → higher churn.
+Top factors influencing churn:
 
-TotalCharges: Lower or irregular total charges sometimes indicate disengaged customers.
+1️⃣ Contract Type
 
-MonthlyCharges: Higher monthly bills slightly increase churn.
+Customers on Month-to-Month contracts churn more frequently.
 
-OnlineSecurity_No: Lack of online security service correlates with higher churn.
+2️⃣ Tenure
 
-Visualizations
+Customers with shorter tenure are more likely to churn.
+
+3️⃣ Total Charges
+
+Lower or inconsistent total charges can indicate disengaged customers.
+
+4️⃣ Monthly Charges
+
+Higher monthly costs slightly increase churn probability.
+
+5️⃣ Online Security
+
+Customers without online security services churn more often.
+
+📊 Visualizations
+
+The notebook includes several visualizations to aid understanding:
 
 Churn distribution
 
-Churn % by categorical features
+Churn percentages by categorical features
 
 Numerical feature distributions by churn
 
-Feature importance barplots
+Correlation heatmaps
 
-ROC and Precision-Recall curves for model comparison
+Feature importance plots
 
-Confusion matrix heatmaps
+ROC curves
 
-Deployment
+Precision–Recall curves
 
-Trained models (logistic_model.pkl, random_forest_model.pkl) and scaler (scaler.pkl) are saved and ready for use in a web app or API for predicting customer churn.
+Confusion matrices
 
-Author
+🚀 Streamlit Web App
 
-Shirish Shakya | shirishshakya4@gmail.com
+The project includes a Streamlit web application:
+
+App Features:
+
+User-friendly UI
+
+Input customer information
+
+Select the prediction model:
+
+Logistic Regression
+
+Random Forest (default)
+
+XGBoost
+
+Predict churn probability and display risk level
+
+Example prediction output:
+
+⚠️ High Churn Risk (73.9%)
+⚙️ Installation
+
+Clone the repository:
+
+git clone https://github.com/yourusername/customer-churn-prediction.git
+cd customer-churn-prediction
+
+Install required packages:
+
+pip install -r requirements.txt
+▶️ Running the Web App
+
+Run the Streamlit application:
+
+streamlit run app.py
+
+Then open the browser link shown in the terminal.
+
+📁 Project Structure
+customer-churn-prediction
+│
+├── Notebooks
+│   └── churn_analysis.ipynb
+│
+├── models
+│   ├── logistic_model.pkl
+│   ├── random_forest_model.pkl
+│   ├── xgb_model.pkl
+│   └── scaler.pkl
+│
+├── app.py
+├── requirements.txt
+├── README.md
+│
+└── data
+    └── WA_Fn-UseC_-Telco-Customer-Churn.csv
+🛠 Tech Stack
+
+Python
+
+Pandas
+
+NumPy
+
+Matplotlib
+
+Seaborn
+
+Scikit-learn
+
+XGBoost
+
+Streamlit
+
+Joblib
+
+👤 Author
+
+Shirish Shakya
+Email: shirishshakya4@gmail.com
