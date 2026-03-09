@@ -135,8 +135,8 @@ Example prediction output:
 
 Clone the repository:
 
-git clone https://github.com/yourusername/customer-churn-prediction.git
-cd customer-churn-prediction
+git clone https://github.com/Shakya658/customer-churn.git
+cd customer-churn
 
 Install required packages:
 
