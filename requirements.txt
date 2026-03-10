@@ -3,6 +3,6 @@ numpy
 matplotlib
 seaborn
 scikit-learn
-xgboost
+xgboost==2.0.3
 streamlit
 joblib
