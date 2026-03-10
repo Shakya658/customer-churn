@@ -145,6 +145,72 @@ Streamlit
 
 Joblib
 
+
+
+Project Workflow
+
+1️⃣ Business Understanding
+
+The goal of this project is to predict whether a telecom customer is likely to churn so that the company can take preventive actions and improve customer retention.
+
+2️⃣ Data Understanding
+
+The dataset contains customer information such as:
+
+Contract type
+
+Monthly charges
+
+Tenure
+
+Internet service
+
+Payment method
+
+Exploratory analysis was performed to understand feature distributions and relationships with churn.
+
+3️⃣ Data Preparation
+
+Data preprocessing steps included:
+
+Handling missing values
+
+Encoding categorical variables
+
+Feature scaling where necessary
+
+Libraries used:
+
+Pandas
+
+scikit-learn
+
+4️⃣ Model Training
+
+Multiple machine learning models were trained and compared, including:
+
+Logistic Regression
+
+Random Forest
+
+Gradient Boosting
+
+The best-performing model was selected based on evaluation metrics.
+
+5️⃣ Model Evaluation
+
+Models were evaluated using:
+
+Accuracy
+
+Precision
+
+Recall
+
+F1-score
+
+These metrics help assess the model’s ability to correctly identify customers who are likely to churn.
+
 👤 Author
 
 Shirish Shakya
