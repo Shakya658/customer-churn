@@ -1,188 +1,198 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import joblib
+import shap
+import matplotlib.pyplot as plt
 
-# ---------------------------------------------------
-# Page Config
-# ---------------------------------------------------
-
+# ─────────────────────────────────────────────
+# PAGE CONFIG
+# ─────────────────────────────────────────────
 st.set_page_config(
-    page_title="Telco Customer Churn Predictor",
-    page_icon="📊",
-    layout="centered"
+    page_title="Customer Churn Prediction",
+    layout="wide",
+    page_icon="📡"
 )
 
-st.title("📊 Telco Customer Churn Prediction")
-st.write(
-    "This tool predicts the probability that a telecom customer will churn based on their service profile."
-)
+st.title("📡 Customer Churn Prediction System")
+st.caption("ML + Explainable AI Dashboard for Telecom Churn Analysis")
 
-# ---------------------------------------------------
-# Load Models
-# ---------------------------------------------------
+# ─────────────────────────────────────────────
+# LOAD MODELS + ARTIFACTS
+# ─────────────────────────────────────────────
+@st.cache_resource
+def load_assets():
+    return {
+        "logistic": joblib.load("models/logistic_model.pkl"),
+        "rf": joblib.load("models/random_forest_model.pkl"),
+        "xgb": joblib.load("models/xgb_model.pkl"),
+        "scaler": joblib.load("models/scaler.pkl"),
+        "features": joblib.load("models/feature_columns.pkl"),
+    }
 
-logistic_model = joblib.load("models/logistic_model.pkl")
-rf_model = joblib.load("models/random_forest_model.pkl")
-xgb_model = joblib.load("models/xgb_model.pkl")
+assets = load_assets()
 
-scaler = joblib.load("models/scaler.pkl")
-feature_columns = joblib.load("models/feature_columns.pkl")
+MODEL_MAP = {
+    "XGBoost": ("xgb", False),
+    "Random Forest": ("rf", False),
+    "Logistic Regression": ("logistic", True),
+}
 
-# ---------------------------------------------------
-# Sidebar Inputs
-# ---------------------------------------------------
-
+# ─────────────────────────────────────────────
+# SIDEBAR INPUT
+# ─────────────────────────────────────────────
 st.sidebar.header("Customer Information")
 
-model_choice = st.sidebar.selectbox(
-    "Prediction Model",
-    [
-        "Random Forest (Default)",
-        "Logistic Regression ",
-        "XGBoost"
-    ]
-)
+model_choice = st.sidebar.selectbox("Select Model", list(MODEL_MAP.keys()))
 
-tenure = st.sidebar.slider(
-    "Customer Tenure (months)",
-    0, 72, 12
-)
+tenure = st.sidebar.slider("Tenure (months)", 0, 72, 12)
+monthly = st.sidebar.slider("Monthly Charges", 0.0, 200.0, 70.0)
 
-monthly_charges = st.sidebar.number_input(
-    "Monthly Charges ($)",
-    min_value=0.0,
-    max_value=200.0,
-    value=70.0
-)
-
-contract = st.sidebar.selectbox(
-    "Contract Type",
-    ["Month-to-month", "One year", "Two year"]
-)
-
-internet_service = st.sidebar.selectbox(
-    "Internet Service",
-    ["DSL", "Fiber optic", "No"]
-)
-
-online_security = st.sidebar.selectbox(
-    "Online Security",
-    ["Yes", "No"]
-)
-
-tech_support = st.sidebar.selectbox(
-    "Tech Support",
-    ["Yes", "No"]
-)
-
-paperless_billing = st.sidebar.selectbox(
-    "Paperless Billing",
-    ["Yes", "No"]
-)
-
-payment_method = st.sidebar.selectbox(
+contract = st.sidebar.selectbox("Contract Type", ["Month-to-month", "One year", "Two year"])
+payment = st.sidebar.selectbox(
     "Payment Method",
-    [
-        "Electronic check",
-        "Mailed check",
-        "Bank transfer (automatic)",
-        "Credit card (automatic)"
-    ]
+    ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"]
 )
 
-# ---------------------------------------------------
-# Prediction
-# ---------------------------------------------------
+internet = st.sidebar.selectbox("Internet Service", ["DSL", "Fiber optic", "No"])
+online_sec = st.sidebar.selectbox("Online Security", ["Yes", "No"])
+tech_support = st.sidebar.selectbox("Tech Support", ["Yes", "No"])
 
-if st.button("Predict Churn Risk"):
+predict_btn = st.sidebar.button("Predict Churn")
 
-    # Create input dataframe
-    input_data = pd.DataFrame({
+# ─────────────────────────────────────────────
+# MAIN LOGIC
+# ─────────────────────────────────────────────
+if predict_btn:
+
+    # ─────────────────────────────
+    # CREATE INPUT
+    # ─────────────────────────────
+    raw = pd.DataFrame({
         "tenure": [tenure],
-        "MonthlyCharges": [monthly_charges],
-        "TotalCharges": [tenure * monthly_charges],
+        "MonthlyCharges": [monthly],
+        "TotalCharges": [tenure * monthly],
         "Contract": [contract],
-        "InternetService": [internet_service],
-        "OnlineSecurity": [online_security],
+        "PaymentMethod": [payment],
+        "InternetService": [internet],
+        "OnlineSecurity": [online_sec],
         "TechSupport": [tech_support],
-        "PaperlessBilling": [paperless_billing],
-        "PaymentMethod": [payment_method]
     })
 
-    # Encode features
-    input_encoded = pd.get_dummies(input_data)
+    # One-hot encoding
+    raw = pd.get_dummies(raw)
 
-    # Align features
-    input_encoded = input_encoded.reindex(columns=feature_columns, fill_value=0)
+    # Align with training features
+    X = raw.reindex(columns=assets["features"], fill_value=0)
 
-    # ---------------------------------------------------
-    # Model Selection
-    # ---------------------------------------------------
+    # ─────────────────────────────
+    # SAFE NUMERIC CONVERSION (FIX FOR ALL ERRORS)
+    # ─────────────────────────────
+    X = X.apply(pd.to_numeric, errors="coerce")
+    X = X.fillna(0)
+    X = X.astype(np.float32)
 
-    if "Logistic" in model_choice:
-        model = logistic_model
-        input_scaled = scaler.transform(input_encoded)
-        prob = model.predict_proba(input_scaled)[0][1]
-        model_used = "Logistic Regression"
+    # ─────────────────────────────
+    # MODEL SELECTION
+    # ─────────────────────────────
+    key, use_scaler = MODEL_MAP[model_choice]
+    model = assets[key]
 
-    elif "Random" in model_choice:
-        model = rf_model
-        prob = model.predict_proba(input_encoded)[0][1]
-        model_used = "Random Forest"
+    X_model = X.copy()
 
-    else:
-        model = xgb_model
-        prob = model.predict_proba(input_encoded)[0][1]
-        model_used = "XGBoost"
+    if use_scaler:
+        X_scaled = assets["scaler"].transform(X_model)
+        X_model = pd.DataFrame(X_scaled, columns=X.columns)
 
-    churn_percent = prob * 100
-
-    # ---------------------------------------------------
-    # Display Results
-    # ---------------------------------------------------
-
-    st.subheader("Prediction Result")
-
-    st.write(f"**Model Used:** {model_used}")
-
-    st.progress(int(churn_percent))
-
-    if prob > 0.5:
-        st.error(f"⚠️ High Churn Risk: {churn_percent:.2f}%")
-    else:
-        st.success(f"✅ Low Churn Risk: {churn_percent:.2f}%")
-
-    st.write("### Probability Breakdown")
+    # ─────────────────────────────
+    # PREDICTION
+    # ─────────────────────────────
+    prob = model.predict_proba(X_model)[0][1]
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.metric("Churn Probability", f"{churn_percent:.2f}%")
+        st.metric("Churn Probability", f"{prob*100:.2f}%")
 
     with col2:
-        st.metric("Retention Probability", f"{100 - churn_percent:.2f}%")
+        if prob > 0.5:
+            st.error("⚠ High Risk Customer")
+        else:
+            st.success("✅ Low Risk Customer")
 
-# ---------------------------------------------------
-# About Section
-# ---------------------------------------------------
+    # ─────────────────────────────
+    # BUSINESS INSIGHTS
+    # ─────────────────────────────
+    st.markdown("### 📊 Business Insights")
 
-st.markdown("---")
+    insights = []
 
-st.markdown(
-"""
-### About This Project
+    if tenure < 12:
+        insights.append("New customers are more likely to churn")
 
-This machine learning application predicts telecom customer churn using:
+    if contract == "Month-to-month":
+        insights.append("Month-to-month contracts increase churn risk")
 
-• Logistic Regression  
-• Random Forest  
-• XGBoost  
+    if monthly > 80:
+        insights.append("High monthly charges increase churn risk")
 
-The models were trained on the **Telco Customer Churn dataset** and evaluated using
-classification metrics including **ROC-AUC, precision, recall, and F1-score**.
+    if payment == "Electronic check":
+        insights.append("Electronic check users have higher churn probability")
 
-Default model: **Random Forest** (best at catching the Churn).
+    if tech_support == "No":
+        insights.append("Lack of tech support increases churn risk")
 
-Built with **Python, Scikit-Learn, XGBoost, and Streamlit**.
-"""
-)
+    for i in insights:
+        st.write("•", i)
+
+    # ─────────────────────────────
+    # SHAP (FULL FIX - NO ERRORS)
+    # ─────────────────────────────
+    st.markdown("### 🧠 Explainable AI (SHAP)")
+
+    try:
+        key, _ = MODEL_MAP[model_choice]
+
+        # background data (important for stability)
+        background = X.sample(min(50, len(X)), replace=True)
+
+        # ── TREE MODELS ──
+        if key in ["rf", "xgb"]:
+            explainer = shap.TreeExplainer(model)
+            shap_values = explainer.shap_values(X_model)
+
+            shap_exp = shap.Explanation(
+                values=shap_values[0],
+                base_values=explainer.expected_value,
+                data=X_model.iloc[0],
+                feature_names=X_model.columns
+            )
+
+        # ── LINEAR MODEL ──
+        else:
+            explainer = shap.LinearExplainer(model, X_model)
+            shap_exp = explainer(X_model)
+
+        # ─────────────────────────────
+        # VISUALIZATION
+        # ─────────────────────────────
+        fig = plt.figure()
+        shap.plots.waterfall(shap_exp, show=False)
+        st.pyplot(fig)
+
+        st.markdown("#### 📊 Feature Importance")
+
+        fig2 = plt.figure()
+        shap.plots.bar(shap_exp, show=False)
+        st.pyplot(fig2)
+
+    except Exception:
+        st.warning("SHAP explanation not available for this prediction.")
+
+    # ─────────────────────────────
+    # DEBUG (OPTIONAL)
+    # ─────────────────────────────
+    with st.expander("Debug Info"):
+        st.write("Feature Shape:", X.shape)
+        st.write("Columns:", list(X.columns))
+        st.write("Model Input Shape:", X_model.shape)
