@@ -152,7 +152,7 @@ Default 0.5 thresholds optimise accuracy but underserve recall in imbalanced chu
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/YOUR_USERNAME/customer-churn-intelligence.git
+git clone https://github.com/Shakya658/customer-churn.git
 cd customer-churn-intelligence
 
 # 2. Create and activate a virtual environment
