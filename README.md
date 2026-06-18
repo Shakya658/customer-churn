@@ -1,229 +1,280 @@
-# 📊 Customer Churn Intelligence Dashboard
+# Customer Churn Intelligence Dashboard
 
-> An end-to-end machine learning project — from exploratory data analysis to a production-ready Streamlit dashboard — predicting customer churn for a telecommunications provider.
+An end-to-end machine-learning portfolio project that analyses telecommunications customer churn, compares three classification models, and serves customer-level predictions through an interactive Streamlit application.
+
+The project is designed as a **deployment-ready analytical prototype** rather than a production system. It demonstrates problem framing, data preparation, model evaluation, threshold tuning, explainability, and communication of customer-retention risk.
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.37-red?logo=streamlit)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-1.5-orange?logo=scikit-learn)
 ![XGBoost](https://img.shields.io/badge/XGBoost-2.1-green)
 ![SHAP](https://img.shields.io/badge/SHAP-0.46-purple)
-![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
----
+## Project Overview
 
-## 🗂 Table of Contents
+Customer churn is costly for subscription businesses because replacing a customer generally requires more effort than retaining an existing one. This project uses the IBM Telco Customer Churn dataset to identify patterns associated with churn and estimate the risk for an individual customer.
 
-- [Overview](#overview)
-- [Demo](#demo)
-- [Project Structure](#project-structure)
-- [Dataset](#dataset)
-- [Methodology](#methodology)
-- [Models & Results](#models--results)
-- [Getting Started](#getting-started)
-- [Running the App](#running-the-app)
-- [Pipeline Contract](#pipeline-contract)
-- [Key Design Decisions](#key-design-decisions)
+The workflow:
 
----
+1. Cleans and explores 7,043 customer records.
+2. Engineers model-ready demographic, service, contract, and billing features.
+3. Trains Logistic Regression, Random Forest, and XGBoost classifiers.
+4. Tunes each model using cross-validation.
+5. Selects decision thresholds using a separate validation set.
+6. Explains individual predictions using SHAP.
+7. Serves the trained models through a Streamlit dashboard.
 
-## Overview
+## Business Questions
 
-Customer churn — when a customer stops using a service — is one of the most costly problems in subscription businesses. This project uses the **IBM Telco Customer Churn** dataset (7,043 customers, 21 features) to:
-
-1. **Explore** patterns driving churn through EDA
-2. **Engineer** features that improve model signal
-3. **Train and compare** three classifiers: Logistic Regression, Random Forest, and XGBoost
-4. **Explain** individual predictions using SHAP values
-5. **Serve** everything through an interactive Streamlit dashboard with actionable retention recommendations
-
----
-
-## Demo
-
-```
-streamlit run app.py
-```
-
-The dashboard lets you input any customer profile and instantly see:
-
-- **Churn probability** with a tuned decision threshold
-- **SHAP waterfall** explaining which features drove the prediction
-- **Top 10 feature contributions** table
-- **Model comparison** across all three classifiers
-- **Retention recommendations** tailored to the customer's risk factors
-
----
-##Prjoect structure
-
-customer-churn/
-│
-├── .devcontainer/              
-├── .github/                    
-│
-├── data/                       
-│   └── WA_Fn-UseC_-Telco-Customer-Churn.csv
-│
-├── models/                     
-│
-├── notebooks/                   (lowercase)
-│   └── churn_analysis.ipynb
-│
-├── assets/                     
-│   ├── plots/                  
-│   └── screenshots/            
-│
-├── app.py
-├── requirements.txt
-├── runtime.txt
-├── .gitignore
-└── README.md
+- Which customer characteristics are most associated with churn?
+- Which model best separates likely churners from customers who are likely to stay?
+- How should the decision threshold change when missed churners are more costly than unnecessary retention outreach?
+- Why was a particular customer classified as high risk?
+- Which customer risk factors could guide a retention conversation?
 
 ## Dataset
 
-**IBM Telco Customer Churn** — publicly available on [Kaggle](https://www.kaggle.com/datasets/blastchar/telco-customer-churn).
+**IBM Telco Customer Churn**
 
 | Property | Value |
-|---|---|
-| Rows | 7,043 customers |
-| Features | 21 (demographics, services, billing) |
-| Target | `Churn` — Yes / No |
-| Class balance | ~73.5% No · 26.5% Yes |
+|---|---:|
+| Customer records | 7,043 |
+| Original columns | 21 |
+| Target | `Churn` (`Yes` / `No`) |
+| Non-churn customers | Approximately 73.5% |
+| Churn customers | Approximately 26.5% |
 
-Download the CSV, rename it `WA_Fn-UseC_-Telco-Customer-Churn.csv`, and place it in the project root before running the notebook.
+The dataset contains customer demographics, subscribed services, contract type, payment method, tenure, monthly charges, total charges, and churn status.
 
----
+The source CSV is not committed to this repository. Download it from Kaggle and place it in the **repository root** using this exact filename:
+
+```text
+WA_Fn-UseC_-Telco-Customer-Churn.csv
+```
+
+Dataset source: [IBM Telco Customer Churn on Kaggle](https://www.kaggle.com/datasets/blastchar/telco-customer-churn)
 
 ## Methodology
 
-### 1. Data Cleaning
-- `TotalCharges` stored as `object` due to blank strings for new customers (tenure = 0)
-- Coerced to numeric; 11 NaN rows filled with `MonthlyCharges × tenure` to preserve data
+### 1. Data preparation
 
-### 2. Feature Engineering
-| Step | Detail |
+- Converts `TotalCharges` from text to numeric.
+- Handles blank `TotalCharges` values for customers with little or no tenure.
+- Removes the customer identifier from model inputs.
+- Encodes binary categorical variables.
+- One-hot encodes multi-category service, contract, and payment variables.
+- Creates tenure-group features.
+
+### 2. Data splitting
+
+The data is split using stratification to preserve the churn ratio:
+
+- **70% training set** for model fitting and cross-validation
+- **10% validation set** for decision-threshold selection
+- **20% test set** for final evaluation
+
+The scaler is fitted only on the training data. The validation set is used for threshold selection, while the test set remains separate from model and threshold tuning.
+
+### 3. Models
+
+| Model | Purpose |
 |---|---|
-| Binary encoding | `LabelEncoder` on 2-class columns (Partner, Dependents, PhoneService, etc.) |
-| One-hot encoding | `pd.get_dummies` on Contract, InternetService, PaymentMethod, and service add-ons |
-| Tenure bins | Ordinal `tenure_group` feature (0–12m, 13–24m, 25–48m, 49–60m, 61–72m) |
-| Bool → int cast | All boolean dummy columns cast to `int` for XGBoost compatibility |
+| Logistic Regression | Interpretable baseline |
+| Random Forest | Non-linear ensemble comparison |
+| XGBoost | Gradient-boosted model for the strongest predictive performance |
 
-### 3. Train / Validation / Test Split
-- **70% train · 10% validation · 20% test** — stratified on the target
-- Scaler fitted **only on the training set** to prevent data leakage
+Hyperparameters are selected with `GridSearchCV` using five-fold cross-validation and ROC AUC scoring. Class imbalance is addressed through balanced class weights or `scale_pos_weight`, depending on the model.
 
-### 4. Hyperparameter Tuning
-All three models tuned with `GridSearchCV` (5-fold CV, `roc_auc` scoring):
+### 4. Threshold tuning
 
-- **Logistic Regression** — C, penalty (L1/L2), solver
-- **Random Forest** — n_estimators, max_depth, min_samples_leaf, max_features
-- **XGBoost** — max_depth, learning_rate, n_estimators, subsample, colsample_bytree; `scale_pos_weight` set to the negative/positive class ratio to handle imbalance
+A default threshold of `0.50` is not automatically appropriate for churn intervention. Missing a genuine churner can be more costly than contacting a customer who ultimately stays.
 
-### 5. Threshold Tuning
-Default 0.5 thresholds optimise accuracy but underserve recall in imbalanced churn scenarios. The XGBoost threshold is tuned on the **validation set** to achieve ≥ 80% recall using the precision-recall curve.
+The notebook therefore selects model-specific thresholds on the validation set, prioritising recall while still reporting the precision trade-off. The saved thresholds are used directly by the Streamlit application.
 
----
+### 5. Explainability
 
-## Models & Results
+The application uses SHAP to show how individual customer features push a prediction towards higher or lower churn risk. This makes the output more useful than a probability alone and supports customer-level investigation.
 
-| Model | Test AUC | Notes |
-|---|---|---|
-| Logistic Regression | ~0.84 | Strong baseline; interpretable coefficients |
-| Random Forest | ~0.87 | Robust to outliers; no scaling needed |
-| **XGBoost** | **~0.89** | Best overall; handles class imbalance via `scale_pos_weight` |
+## Evaluation
 
-*Exact values depend on your random seed and GridSearchCV run.*
+Models are compared using:
 
-**Top churn predictors (Random Forest feature importance):**
-1. `tenure` — longer tenure = much lower churn risk
-2. `Contract_Month-to-month` — highest churn rate of any contract type
-3. `MonthlyCharges` — higher charges correlate with churn
-4. `InternetService_Fiber optic` — Fiber customers churn more than DSL
-5. `TotalCharges` — proxy for customer lifetime value
+- ROC AUC
+- Precision
+- Recall
+- F1 score
+- Confusion matrices
+- Precision-recall curves
 
----
+In the current notebook workflow, XGBoost provides the strongest overall ROC AUC. Exact values are retained in the executed notebook outputs because they can change when the data split, random seed, dependency versions, or tuning grid changes.
+
+This avoids presenting a model metric without its corresponding experimental context. The notebook is the source of truth for the latest evaluation run.
+
+## Key Analytical Findings
+
+The analysis consistently identifies the following as important churn indicators:
+
+- Short customer tenure
+- Month-to-month contracts
+- Higher monthly charges
+- Electronic-check payment
+- Fibre-optic internet service
+- Lack of online security or technical-support services
+
+These relationships are observational rather than causal. They identify useful retention segments but do not prove that changing one feature will prevent churn.
+
+## Streamlit Application
+
+The dashboard allows a user to:
+
+- Enter a customer profile
+- Select Logistic Regression, Random Forest, or XGBoost
+- View the predicted churn probability
+- See the model-specific decision threshold
+- Assign the customer to a low-, medium-, or high-risk segment
+- Inspect the strongest feature contributions through SHAP
+- Compare outputs across the three models
+
+Run the application with:
+
+```bash
+streamlit run app.py
+```
+
+## Repository Structure
+
+```text
+customer-churn/
+├── app.py
+├── README.md
+├── requirements.txt
+├── runtime.txt
+├── notebooks/
+│   └── churn_analysis.ipynb
+├── models/
+│   ├── logistic_model.pkl
+│   ├── random_forest_model.pkl
+│   ├── xgb_model.pkl
+│   ├── scaler.pkl
+│   ├── feature_columns.pkl
+│   └── thresholds.pkl
+└── assets/
+    ├── plots/
+    └── screenshots/
+```
+
+The source dataset must be downloaded separately and placed in the repository root.
 
 ## Getting Started
 
 ### Prerequisites
-- Python 3.10+
-- The dataset CSV (see [Dataset](#dataset))
 
-### Installation
+- Python 3.10 or later
+- Git
+- The IBM Telco Customer Churn CSV
+
+### 1. Clone the repository
 
 ```bash
-# 1. Clone the repo
 git clone https://github.com/Shakya658/customer-churn.git
-cd customer-churn-intelligence
-
-# 2. Create and activate a virtual environment
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# 4. Place the dataset in the project root
-#    WA_Fn-UseC_-Telco-Customer-Churn.csv
+cd customer-churn
 ```
 
-### Generate Models
-
-Open and run all cells in `churn_analysis.ipynb`. This will:
-- Train and tune all three models (~5–10 minutes depending on hardware)
-- Save serialised artefacts to the `models/` directory
-- Generate EDA plots as `.png` files
+### 2. Create a virtual environment
 
 ```bash
-jupyter notebook churn_analysis.ipynb
+python -m venv .venv
 ```
 
----
+Activate it on Windows:
 
-## Running the App
+```bash
+.venv\Scripts\activate
+```
+
+Activate it on macOS or Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+### 3. Install dependencies
+
+```bash
+pip install -r requirements.txt
+pip install notebook seaborn
+```
+
+### 4. Add the dataset
+
+Place the downloaded CSV here:
+
+```text
+customer-churn/WA_Fn-UseC_-Telco-Customer-Churn.csv
+```
+
+### 5. Run the analysis notebook
+
+Launch Jupyter from the repository root:
+
+```bash
+jupyter notebook notebooks/churn_analysis.ipynb
+```
+
+Run all cells to reproduce the analysis and regenerate the serialized model artefacts.
+
+### 6. Launch the dashboard
 
 ```bash
 streamlit run app.py
 ```
 
-Navigate to `http://localhost:8501` in your browser.
+Open the local address displayed by Streamlit, normally:
 
-> **Note:** The `models/` directory must exist before launching the app. Run the notebook first.
+```text
+http://localhost:8501
+```
 
----
+## Training and Inference Contract
 
-## Pipeline Contract
+The application must reproduce the feature-engineering steps used during training. The saved `feature_columns.pkl` file defines the required feature order.
 
-The app's `prepare_input()` function **must replicate the notebook's feature engineering exactly** — the models only accept a fixed column schema saved in `models/feature_columns.pkl`.
+At inference time, `prepare_input()`:
 
-| Step | Notebook | app.py |
-|---|---|---|
-| Binary cols | `LabelEncoder` on 2-unique cols | Manual dict mapping (same alphabetical order) |
-| Multi-cat cols | `pd.get_dummies` on Contract, Internet, Payment + service cols | Same `pd.get_dummies` call |
-| Tenure bins | `pd.cut` → `pd.get_dummies` | Same bins and labels |
-| Column alignment | Source of truth | `reindex(columns=feature_columns, fill_value=0)` |
-| Scaling | `StandardScaler` fit on `X_train` | `scaler.transform(X)` for Logistic Regression only |
-| XGBoost input | `X.to_numpy(dtype=float)` | `X.to_numpy(dtype=float)` |
+1. Builds a one-row customer record.
+2. Applies the training-time binary mappings.
+3. One-hot encodes multi-category variables.
+4. Creates tenure-group indicators.
+5. Reindexes the row against the saved feature list.
+6. Fills absent dummy variables with zero.
+7. Applies scaling only to Logistic Regression.
 
-The `reindex` call in `prepare_input()` is the safety net — even if a user's input doesn't trigger every dummy column, the array fed to the model always has the correct shape and column order.
+This alignment prevents missing-column and feature-order errors when a single customer profile does not contain every possible category.
 
----
+## Important Limitations
 
-## Key Design Decisions
+- The project uses a public sample dataset rather than live company data.
+- The dataset does not include customer-interaction history, competitor offers, service outages, or retention-campaign outcomes.
+- Predicted risk should support investigation, not automatically determine customer treatment.
+- SHAP explanations describe model behaviour and should not be interpreted as causal proof.
+- The application is a portfolio prototype and does not include production monitoring, authentication, drift detection, or automated retraining.
 
-**Why numpy arrays for XGBoost?**
-XGBoost raises feature-name mismatch warnings (and errors on some versions) when pandas DataFrames with column names are passed at inference time if the model was trained on arrays. Training on `X.to_numpy()` and inferring on the same eliminates this entirely.
+## Tech Stack
 
-**Why separate validation and test sets?**
-The validation set is used exclusively for threshold tuning. Using the test set for this would constitute data leakage — the test set is touched only once, for final reported metrics.
+- Python
+- Pandas and NumPy
+- Scikit-learn
+- XGBoost
+- SHAP
+- Matplotlib and Seaborn
+- Streamlit
+- Joblib
 
-**Why `class_weight='balanced'` and `scale_pos_weight`?**
-The dataset is ~27% positive (churn). Without correction, models optimise accuracy by predicting "No churn" for most customers — useless in practice. Balanced weights penalise missed churners more heavily.
+## Author
 
-**Why tune for recall ≥ 80%?**
-In churn prediction the cost of a **false negative** (missing a churner) typically exceeds the cost of a **false positive** (unnecessary retention outreach). A recall-optimised threshold captures more at-risk customers at the expense of some precision.
+**Shirish Man Shakya**  
+Data Analyst | Business Intelligence | Predictive Analytics
 
----
-
-## License
-
-MIT — free to use, modify, and distribute with attribution.
+- [Portfolio](https://shakya658.github.io/portfolio/)
+- [LinkedIn](https://linkedin.com/in/shirish-man-shakya)
+- [GitHub](https://github.com/Shakya658)
