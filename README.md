@@ -191,15 +191,15 @@ The test split contains **1,409 customers**, including **374 churn cases** (26.5
 
 The export workflow verifies the 7,043-row source dataset, reconstructs the notebook test split, validates the generated arrays and checks the application syntax before committing the evaluation artefact.
 
-## Evaluation Screenshots
+## Evaluation Plots
 
 ### Real held-out ROC curves
 
-![Real held-out ROC curves](assets/screenshots/real_roc_curves.png)
+![Real held-out ROC curves](assets/plots/real_roc_curves.png)
 
 ### Real held-out precision-recall curves
 
-![Real held-out precision-recall curves](assets/screenshots/real_precision_recall_curves.png)
+![Real held-out precision-recall curves](assets/plots/real_precision_recall_curves.png)
 
 ## Limitations
 
