@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas==2.2.2 numpy==1.26.4 scikit-learn==1.6.1 xgboost shap matplotlib joblib nbformat pytest
+          pip install pandas==2.2.2 numpy==1.26.4 scikit-learn==1.6.1 seaborn==0.13.2 xgboost shap matplotlib joblib nbformat pytest
 
       - name: Download IBM Telco dataset
         run: |
