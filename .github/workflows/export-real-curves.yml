@@ -1,0 +1,84 @@
+name: Export real evaluation curves
+
+on:
+  push:
+    branches:
+      - feat/real-evaluation-curves
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  export-and-validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas==2.2.2 numpy==1.26.4 scikit-learn==1.6.1 seaborn==0.13.2 xgboost shap matplotlib joblib nbformat pytest
+
+      - name: Download IBM Telco dataset
+        run: |
+          curl --fail --location --retry 3 \
+            https://raw.githubusercontent.com/treselle-systems/customer_churn_analysis/master/WA_Fn-UseC_-Telco-Customer-Churn.csv \
+            --output WA_Fn-UseC_-Telco-Customer-Churn.csv
+          python - <<'PY'
+          import pandas as pd
+          df = pd.read_csv('WA_Fn-UseC_-Telco-Customer-Churn.csv')
+          assert df.shape == (7043, 21), df.shape
+          print('Dataset verified:', df.shape)
+          PY
+
+      - name: Export curves from notebook test split
+        run: python scripts/run_curve_export.py
+
+      - name: Apply real-curve UI update
+        run: python scripts/apply_real_curve_ui.py
+
+      - name: Validate curve artefact
+        run: pytest -q tests/test_evaluation_curves.py
+
+      - name: Check Python syntax
+        run: python -m py_compile app.py scripts/export_evaluation_curves.py scripts/run_curve_export.py scripts/apply_real_curve_ui.py tests/test_evaluation_curves.py
+
+      - name: Confirm simulated curves were removed
+        run: |
+          ! grep -q "Simulated ROC" app.py
+          ! grep -q "simulated_scores" app.py
+          grep -q "Held-out ROC" app.py
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-export-output
+          path: |
+            assets/evaluation/model_curves.json
+            evaluation_export_error.txt
+          if-no-files-found: ignore
+
+      - name: Commit validated app and evaluation data
+        if: github.event_name == 'push'
+        run: |
+          if git diff --quiet -- app.py README.md assets/evaluation/model_curves.json; then
+            echo 'Real evaluation curves already up to date.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.py README.md assets/evaluation/model_curves.json
+          git commit -m 'feat: replace simulated curves with held-out results'
+          git push

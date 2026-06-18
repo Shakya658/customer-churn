@@ -88,6 +88,7 @@ The dashboard allows a user to:
 - View a low-, medium- or high-risk segment
 - Inspect SHAP feature contributions
 - Compare model outputs
+- Inspect real held-out ROC and precision-recall curves
 
 Gender is now collected explicitly because it was used during model training. The app no longer inserts a hidden hard-coded gender value during inference.
 
@@ -175,6 +176,20 @@ pytest tests/test_model_assets.py
 - `requirements-dev.txt` contains the notebook and modelling environment, including Jupyter and Seaborn.
 
 Use the pinned versions when loading the committed serialized models.
+
+## Real Held-out Evaluation Curves
+
+The Streamlit ROC and precision-recall charts use predictions from the untouched 20% test split rather than simulated values. The committed models are scored without retraining, and the curve points are stored in `assets/evaluation/model_curves.json`.
+
+The test split contains **1,409 customers**, including **374 churn cases** (26.5% positive rate).
+
+| Model | ROC AUC | Average Precision |
+|---|---:|---:|
+| Logistic Regression | 0.850 | 0.667 |
+| Random Forest | 0.848 | 0.684 |
+| XGBoost | 0.850 | 0.690 |
+
+The export workflow verifies the 7,043-row source dataset, reconstructs the notebook test split, validates the generated arrays and checks the application syntax before committing the evaluation artefact.
 
 ## Limitations
 
