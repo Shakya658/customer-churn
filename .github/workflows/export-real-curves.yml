@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - feat/real-evaluation-curves
+  pull_request:
+    branches:
+      - master
   workflow_dispatch:
 
 permissions:
@@ -45,7 +48,14 @@ jobs:
       - name: Validate curve artefact
         run: pytest -q tests/test_evaluation_curves.py
 
+      - name: Upload generated evaluation artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-evaluation-curves
+          path: assets/evaluation/model_curves.json
+
       - name: Commit generated evaluation artefact
+        if: github.event_name == 'push'
         run: |
           if git diff --quiet -- assets/evaluation/model_curves.json; then
             echo 'Evaluation artefact already up to date.'
