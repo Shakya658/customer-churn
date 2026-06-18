@@ -1,4 +1,4 @@
-name: Update evaluation screenshots
+name: Update evaluation plots
 
 on:
   push:
@@ -7,7 +7,6 @@ on:
     paths:
       - assets/evaluation/model_curves.json
       - scripts/export_evaluation_screenshots.py
-      - scripts/update_readme_screenshots.py
       - .github/workflows/update-evaluation-screenshots.yml
   workflow_dispatch:
 
@@ -15,7 +14,7 @@ permissions:
   contents: write
 
 jobs:
-  generate-screenshots:
+  generate-plots:
     runs-on: ubuntu-latest
 
     steps:
@@ -30,20 +29,24 @@ jobs:
       - name: Install dependencies
         run: pip install matplotlib
 
-      - name: Generate real evaluation screenshots
-        run: python scripts/export_evaluation_screenshots.py
-
-      - name: Embed screenshots in README
-        run: python scripts/update_readme_screenshots.py
-
-      - name: Commit screenshots and README
+      - name: Generate real evaluation plots
         run: |
-          if git diff --quiet -- README.md assets/screenshots/real_roc_curves.png assets/screenshots/real_precision_recall_curves.png; then
-            echo 'Screenshots and README already up to date.'
+          python scripts/export_evaluation_screenshots.py
+          mkdir -p assets/plots
+          mv assets/screenshots/real_roc_curves.png assets/plots/real_roc_curves.png
+          mv assets/screenshots/real_precision_recall_curves.png assets/plots/real_precision_recall_curves.png
+          sed -i 's#assets/screenshots/real_roc_curves.png#assets/plots/real_roc_curves.png#g' README.md
+          sed -i 's#assets/screenshots/real_precision_recall_curves.png#assets/plots/real_precision_recall_curves.png#g' README.md
+          sed -i 's/## Evaluation Screenshots/## Evaluation Plots/' README.md
+
+      - name: Commit plots and README
+        run: |
+          if git diff --quiet -- README.md assets/plots assets/screenshots; then
+            echo 'Plots and README already up to date.'
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add README.md assets/screenshots/real_roc_curves.png assets/screenshots/real_precision_recall_curves.png
-          git commit -m 'feat: update real evaluation screenshots'
+          git add -A README.md assets/plots assets/screenshots
+          git commit -m 'feat: move evaluation charts to plots'
           git push
