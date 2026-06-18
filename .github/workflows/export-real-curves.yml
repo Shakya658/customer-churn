@@ -43,16 +43,20 @@ jobs:
           PY
 
       - name: Export curves from notebook test split
-        run: python scripts/export_evaluation_curves.py
+        run: python scripts/run_curve_export.py
 
       - name: Validate curve artefact
         run: pytest -q tests/test_evaluation_curves.py
 
-      - name: Upload generated evaluation artefact
+      - name: Upload diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: real-evaluation-curves
-          path: assets/evaluation/model_curves.json
+          name: evaluation-export-output
+          path: |
+            assets/evaluation/model_curves.json
+            evaluation_export_error.txt
+          if-no-files-found: ignore
 
       - name: Commit generated evaluation artefact
         if: github.event_name == 'push'
