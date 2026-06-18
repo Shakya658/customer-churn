@@ -5,7 +5,9 @@ Run:  streamlit run app.py
 Requires: models/ directory produced by notebooks/churn_analysis.ipynb
 """
 
+import json
 import warnings
+from pathlib import Path
 
 import joblib
 import matplotlib.pyplot as plt
@@ -346,66 +348,76 @@ with tab2:
 
 with tab3:
     st.markdown(
-        '<p class="section-header">Simulated ROC & Precision-Recall Curves</p>',
+        '<p class="section-header">Held-out ROC & Precision-Recall Curves</p>',
         unsafe_allow_html=True,
     )
-    st.info(
-        "These curves use a seeded synthetic hold-out set for interface demonstration. "
-        "Run the notebook for evaluation on the real test split."
-    )
 
-    rng = np.random.default_rng(42)
-    n = 1_000
-    y_true = rng.choice([0, 1], size=n, p=[0.74, 0.26])
+    curve_path = Path("assets/evaluation/model_curves.json")
+    try:
+        curve_data = json.loads(curve_path.read_text(encoding="utf-8"))
+        expected_models = {"Logistic Regression", "Random Forest", "XGBoost"}
+        if set(curve_data.get("models", {})) != expected_models:
+            raise ValueError("Evaluation data does not contain all three models")
 
-    def simulated_scores(auc_target: float) -> np.ndarray:
-        noise = rng.normal(0, 0.25, n)
-        raw_scores = y_true * auc_target + (1 - y_true) * (1 - auc_target) + noise
-        return np.clip(raw_scores, 0, 1)
+        st.caption(
+            f"Real held-out test evaluation: {curve_data['test_records']:,} customers, "
+            f"{curve_data['positive_records']:,} churn cases "
+            f"({curve_data['positive_rate'] * 100:.1f}% positive rate)."
+        )
 
-    model_scores = {
-        "Logistic Regression": simulated_scores(0.83),
-        "Random Forest": simulated_scores(0.87),
-        "XGBoost": simulated_scores(0.89),
-    }
-    palette = {
-        "Logistic Regression": "#3498db",
-        "Random Forest": "#2ecc71",
-        "XGBoost": "#e74c3c",
-    }
+        palette = {
+            "Logistic Regression": "#3498db",
+            "Random Forest": "#2ecc71",
+            "XGBoost": "#e74c3c",
+        }
 
-    col_roc, col_pr = st.columns(2)
-    with col_roc:
-        figure, axis = plt.subplots(figsize=(5, 4))
-        for name, scores in model_scores.items():
-            false_positive_rate, true_positive_rate, _ = roc_curve(y_true, scores)
-            roc_auc = auc(false_positive_rate, true_positive_rate)
-            axis.plot(
-                false_positive_rate,
-                true_positive_rate,
-                label=f"{name} (AUC={roc_auc:.2f})",
-                color=palette[name],
-                lw=2,
+        col_roc, col_pr = st.columns(2)
+        with col_roc:
+            figure, axis = plt.subplots(figsize=(5, 4))
+            for name, metrics in curve_data["models"].items():
+                axis.plot(
+                    metrics["false_positive_rate"],
+                    metrics["true_positive_rate"],
+                    label=f"{name} (AUC={metrics['roc_auc']:.3f})",
+                    color=palette[name],
+                    lw=2,
+                )
+            axis.plot([0, 1], [0, 1], "k--", lw=1)
+            axis.set_xlabel("False Positive Rate")
+            axis.set_ylabel("True Positive Rate")
+            axis.set_title("ROC Curves", fontweight="bold")
+            axis.legend(fontsize=8)
+            plt.tight_layout()
+            st.pyplot(figure, clear_figure=True)
+
+        with col_pr:
+            figure, axis = plt.subplots(figsize=(5, 4))
+            for name, metrics in curve_data["models"].items():
+                axis.plot(
+                    metrics["recall"],
+                    metrics["precision"],
+                    label=f"{name} (AP={metrics['average_precision']:.3f})",
+                    color=palette[name],
+                    lw=2,
+                )
+            axis.axhline(
+                curve_data["positive_rate"],
+                linestyle="--",
+                linewidth=1,
+                label="Class prevalence",
             )
-        axis.plot([0, 1], [0, 1], "k--", lw=1)
-        axis.set_xlabel("False Positive Rate")
-        axis.set_ylabel("True Positive Rate")
-        axis.set_title("ROC Curves", fontweight="bold")
-        axis.legend(fontsize=8)
-        plt.tight_layout()
-        st.pyplot(figure, clear_figure=True)
+            axis.set_xlabel("Recall")
+            axis.set_ylabel("Precision")
+            axis.set_title("Precision-Recall Curves", fontweight="bold")
+            axis.legend(fontsize=8)
+            plt.tight_layout()
+            st.pyplot(figure, clear_figure=True)
 
-    with col_pr:
-        figure, axis = plt.subplots(figsize=(5, 4))
-        for name, scores in model_scores.items():
-            precision, recall, _ = precision_recall_curve(y_true, scores)
-            axis.plot(recall, precision, label=name, color=palette[name], lw=2)
-        axis.set_xlabel("Recall")
-        axis.set_ylabel("Precision")
-        axis.set_title("Precision-Recall Curves", fontweight="bold")
-        axis.legend(fontsize=8)
-        plt.tight_layout()
-        st.pyplot(figure, clear_figure=True)
+    except (FileNotFoundError, KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+        st.warning(
+            "Held-out evaluation curves are unavailable. "
+            f"Run `python scripts/export_evaluation_curves.py` to regenerate them. Details: {error}"
+        )
 
 with tab4:
     st.markdown(
